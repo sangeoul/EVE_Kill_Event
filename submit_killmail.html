@@ -1,0 +1,34 @@
+수동 킬메일 등록<br><br>
+
+1. zkillboard 에서 킬메일을 연다.<br>
+2. 우상단 메뉴에서 Export 를 찾아서 누르고, In Game Link 를 선택한다.<br>
+3. 나오는 태그를 복사한 뒤 아래에 붙여넣기.<br><br>
+
+※ 자신이 킬메일 id와 해쉬값을 알고 있다면 직접 입력도 가능.<br><br>
+
+<form action="./submit_killmail.php" method="get">
+
+태그 붙여넣기:<br>
+<textarea id=ingamelink name=ingamelink cols=50 rows=4 onchange="javascript:parseKillMail()"></textarea>
+<br><br>
+Killmail ID : <input type=text id="killmail_id" name="killmail_id"></input><br>
+Killmail Hash : <input type=text id="killmail_hash" name="killmail_hash"></input><br>
+<input type="submit" value="제출">
+</form>
+
+<script>
+    function parseKillMail(){
+        //<url=killReport:89365035:d1f158afc8495156e15540bcb9700c832aef914d>Kill: Alf Lightning's Buzzard</url>
+
+        
+        let rawstring=document.getElementById("ingamelink").value;
+        
+        rawstring=rawstring.split(">")[0];
+        //alert(rawstring);
+        let kmid=rawstring.split(":")[1];
+        let kmhs=rawstring.split(":")[2];
+
+        document.getElementById("killmail_id").value=kmid;
+        document.getElementById("killmail_hash").value=kmhs;
+    }
+</script>

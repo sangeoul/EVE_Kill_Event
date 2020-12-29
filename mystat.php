@@ -16,7 +16,6 @@ logincheck();
 
 $loginurl="https://login.eveonline.com/oauth/authorize?response_type=code&redirect_uri=https://".$serveraddr."/CorpESI/Event/getesi.php&scope=".$ESI_scope["KillEvent"]."&client_id=".$client_id["KillEvent"];
 
-
 if(!isset($_GET["character_id"])) {
     $_GET["character_id"]=$_SESSION['PublicESI_userid'];
 
@@ -28,15 +27,22 @@ if(!isset($_GET["character_id"])) {
 $qr="select * from PublicESI_keys where userid=".$_SESSION['PublicESI_userid']." and service_type=\"KillEvent\" and active>=1";
 $result=$dbcon->query($qr);
 
+if($result->num_rows==0){
+    echo "<script language=javascript>window.location.href='./login.php'</script>";
+}
+
 echo("<br><br>");
 for($i=0;$i<$result->num_rows;$i++){
     $data=$result->fetch_array();
-    echo("<a class=\"stat-link\" href=\".mystat.php?character_id=".$data["characterid"]."\">".$data["charactername"]."</a> ");
+    echo("<a class=\"stat-link\" href=\"./mystat.php?character_id=".$data["characterid"]."\">".$data["charactername"]."</a> ");
     if($i%$LINKS_PER_ROW==($LINKS_PER_ROW-1)){
         echo("\n<br>\n");
     }
     
 }
+echo("<br>");
+echo("<a href=\"".$loginurl."\">캐릭터 추가</a>");
+
 
 echo("<br><hr><br>");
 echo(getCharacterName($_GET["character_id"])."\n<br>\n<br>");
@@ -47,11 +53,11 @@ $result=$dbcon->query($qr);
 
 //소유가 확인되면 정보를 출력함.
 if($result->num_rows>0){
-    refresh_token($data["characterid"],"KillEvent");
+    refresh_token($_GET["character_id"],"KillEvent");
     $character_data=$result->fetch_array();
 
     $header_type= "Content-Type:application/json";
-    $apiurl="https://esi.evetech.net/latest/characters/1535234/killmails/recent/";
+    $apiurl="https://esi.evetech.net/latest/characters/".$_GET["character_id"]."/killmails/recent/";
     $curl= curl_init();
     curl_setopt($curl,CURLOPT_SSL_VERIFYPEER, $SSLauth); 
     curl_setopt($curl,CURLOPT_HTTPGET,true);
@@ -63,23 +69,26 @@ if($result->num_rows>0){
     //var_dump($curl_response);
     curl_close($curl);
     
+    //echo( $curl_response."\n<br>");
+    //echo( $_SESSION["PublicESI_access_token"]."\n<br>");
+    //echo( $_SESSION["PublicESI_access_token"]."\n<br>");
     $killdata=json_decode($curl_response,true);
 
-    if(array_key_exists("error", $killdata) && $killdata["error"]=="unexpected end of JSON input"){
+    if(array_key_exists("error", $killdata) && ($killdata["error"]=="unexpected end of JSON input" || $killdata["error"]=="authorization not provided")){
         echo($character_data["charactername"]." 의 토큰이 만료되었습니다. 다시 <a href=\"".$loginurl."\">로그인</a> 해 주세요.");
     }
     else{
         //킬메일 업데이트도 동시에 진행해 준다(비동기)
-        echo("<script>\nsetTimeout(()=>{update_killmail(".$data["characterid"].");},100);\n</script>\n");
+        echo("<script>\nsetTimeout(()=>{update_killmail(".$_GET["character_id"].");},100);\n</script>\n");
 
         
         //전체 킬포인트/로스포인트 정리
-        $qr="select sum(value/killers_number) from Event_killmails where killer_id=".$data["characterid"];
+        $qr="select sum(value/killers_number) from Event_killmails where killer_id=".$_GET["character_id"];
         $result=$dbcon->query($qr);
         $killpoint=$result->fetch_row();
         $killpoint=ceil($killpoint[0]);
 
-        $qr="select sum(value) from Event_killmails where victim_id=".$data["characterid"]." and (victim_ship!=11176 and victim_ship!=11198 and victim_ship!=11202 and victim_ship!=11186)";
+        $qr="select sum(value/killers_number) from Event_killmails where victim_id=".$_GET["character_id"]." and (victim_ship!=11176 and victim_ship!=11198 and victim_ship!=11202 and victim_ship!=11186)";
         $result=$dbcon->query($qr);
         $losspoint=$result->fetch_row();
         $losspoint=ceil($losspoint[0]);
@@ -88,11 +97,15 @@ if($result->num_rows>0){
         echo("Loss point : ".number_format($losspoint)."\n<br>");
         echo("Effective point : ".number_format($killpoint-$losspoint)."\n<br>");
 
+        //쉽별 킬포인트/로스포인트 정리
+
+
     }
 }
 
 
 ?>
+<a href="./submit_killmail.html">킬메일 수동으로 등록하기</a><br>
 <script>
 function update_killmail(character_id){
     var DBxhr=new XMLHttpRequest();
