@@ -93,9 +93,15 @@ if($result->num_rows>0){
         $losspoint=$result->fetch_row();
         $losspoint=ceil($losspoint[0]);
 
+        $qr="select sum(value/(4*killers_number)) from Event_killmails where victim_id=".$_GET["character_id"]." and (victim_ship=11176 or victim_ship!=11198 or victim_ship!=11202 or victim_ship!=11186)";
+        $result=$dbcon->query($qr);
+        $losspoint_cept=$result->fetch_row();
+        $losspoint+=ceil($losspoint_cept[0]);
+
         echo("Kill point : ".number_format($killpoint)."\n<br>");
         echo("Loss point : ".number_format($losspoint)."\n<br>");
-        echo("Effective point : ".number_format($killpoint-$losspoint)."\n<br><br>");
+        echo("<span class=score>Effective point : ".number_format($killpoint-$losspoint)."</span>\n<br>");
+        echo("주의 : 현재 표시되는 점수는 테스트용으로 표시되는 점수입니다. 실제 점수는 1월 1일에 리셋됩니다.<br>")
 
         //쉽별 킬포인트/로스포인트 정리
 
@@ -121,6 +127,12 @@ function update_killmail(character_id){
 
 span.tax{
     font-size:26px;
+}
+a.stat-link{
+    margin:10px;
+}
+span.score{
+    font-size:30px;
 }
 </style>
 
