@@ -75,7 +75,7 @@ if($result->num_rows>0){
     $killdata=json_decode($curl_response,true);
 
     if(array_key_exists("error", $killdata) && ($killdata["error"]=="unexpected end of JSON input" || $killdata["error"]=="authorization not provided")){
-        echo($character_data["charactername"]." 의 토큰이 만료되었습니다. 다시 <a href=\"".$loginurl."\">로그인</a> 해 주세요.");
+        echo($character_data["charactername"]." 의 토큰이 만료되었습니다. 다시 <a href=\"".$loginurl."\">로그인</a> 해 주세요.<br><br>");
     }
     else{
         //킬메일 업데이트도 동시에 진행해 준다(비동기)
@@ -95,7 +95,7 @@ if($result->num_rows>0){
 
         echo("Kill point : ".number_format($killpoint)."\n<br>");
         echo("Loss point : ".number_format($losspoint)."\n<br>");
-        echo("Effective point : ".number_format($killpoint-$losspoint)."\n<br>");
+        echo("Effective point : ".number_format($killpoint-$losspoint)."\n<br><br>");
 
         //쉽별 킬포인트/로스포인트 정리
 
