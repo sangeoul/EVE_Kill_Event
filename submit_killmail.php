@@ -4,6 +4,7 @@ include $_SERVER['DOCUMENT_ROOT']."/PublicESI/phplib.php";
 dbset();
 session_start();
 
+$SHIP_EXCEPTION=array(33475,33700,33702,56701,12198,12199,12200,26849,26888,26890,26892,28770,28772,28774,33474,33520,33522,33477,33478,33479,33581,33583,33476,33589,36523,33591,33990,34120,48899,35825,35826,35827,35835,35836,35837,35841,35832,35833,35834,40340,47512,47513,47514,47515,47516,37534,35840);
 
 if(isset($_GET["killmail_id"])){
 
@@ -11,8 +12,7 @@ if(isset($_GET["killmail_id"])){
     header("Content-Type: application/json");
 
     //제외해야 할 목록. 주로 스트럭쳐 및 디플로이어블.
-    $SHIP_EXCEPTION=array(33475,33700,33702,56701,12198,12199,12200,26849,26888,26890,26892,28770,28772,28774,33474,33520,33522,33477,33478,33479,33581,33583,33476,33589,36523,33591,33990,34120,48899,35825,35826,35827,35835,35836,35837,35841,35832,35833,35834,40340,47512,47513,47514,47515,47516,37534,35840);
-
+    
 
     //꼽 아이디를 찾아낸다.
     $qr="select killmail_id from Event_killmails where killmail_id=".$_GET["killmail_id"];
@@ -43,31 +43,7 @@ if(isset($_GET["killmail_id"])){
         if(array_key_exists("error", $killdata)){
             echo("{\"error\":\"esi_error\",\n\"message\":\"ESI 에러 발생.\"}");
         }
-        //특정 기간의 킬메일만 정상적으로 저장해야 함. 그 외에는 가짜 정보 저장.
-        else if(strtotime($killdata["killmail_time"])<strtotime("2020-12-01T00:00:00Z")){
-            $qr="insert into Event_killmails (
-                killmail_id,
-                killmail_hash,
-                killtime,
-                victim_id,victim_name,victim_ship,
-                value,killers_number,
-                killer_id,killer_name,killer_ship) values (
-                ".$killdata["killmail_id"].",
-                \"".$_GET["killmail_hash"]."\",
-                timestamp(\"".str_replace("Z","+00:00",$killdata["killmail_time"])."\"),
-                ".$killdata["victim"]["character_id"].",
-                \"".getCharacterName($killdata["victim"]["character_id"])."\",
-                ".$killdata["victim"]["ship_type_id"].",
-                0,
-                1,
-                ".$killdata["attackers"][0]["character_id"].",
-                \"".getCharacterName($killdata["attackers"][0]["character_id"])."\",
-                ".$killdata["attackers"][0]["ship_type_id"].")";
-            
-            $result=$dbcon->query($qr);
-
-        }
-        //쉽만 정상적으로 저장해야 함. (스트럭쳐들은 제외하고 더미 값을 저장해야 함.)
+        //스트럭처 예외처리
         else if(in_array($killdata["victim"]["ship_type_id"],$SHIP_EXCEPTION)){
             $qr="insert into Event_killmails (
                 killmail_id,
@@ -79,8 +55,8 @@ if(isset($_GET["killmail_id"])){
                 ".$killdata["killmail_id"].",
                 \"".$_GET["killmail_hash"]."\",
                 timestamp(\"".str_replace("Z","+00:00",$killdata["killmail_time"])."\"),
-                ".$killdata["victim"]["character_id"].",
-                \"".getCharacterName($killdata["victim"]["character_id"])."\",
+                ".$killdata["victim"]["corporation_id"].",
+                \"Corporation Owned Structure\",
                 ".$killdata["victim"]["ship_type_id"].",
                 0,
                 1,
@@ -90,7 +66,71 @@ if(isset($_GET["killmail_id"])){
             
             $result=$dbcon->query($qr);
         }
+        //특정 기간의 킬메일만 정상적으로 저장해야 함. 그 외에는 가짜 정보 저장.
+        else if(strtotime($killdata["killmail_time"])<strtotime("2021-01-01T00:00:00Z") || strtotime($killdata["killmail_time"])>=strtotime("2021-01-08T00:00:00Z")){
+            //NPC 가 아닌 유저의 킬이면.
+            if(isset($killdata["attackers"][$i]["character_id"])){
+                            
+                $qr="insert into Event_killmails (
+                    killmail_id,
+                    killmail_hash,
+                    killtime,
+                    victim_id,victim_name,victim_ship,
+                    value,killers_number,
+                    killer_id,killer_name,killer_ship) values (
+                    ".$killdata["killmail_id"].",
+                    \"".$_GET["killmail_hash"]."\",
+                    timestamp(\"".str_replace("Z","+00:00",$killdata["killmail_time"])."\"),
+                    ".$killdata["victim"]["character_id"].",
+                    \"".getCharacterName($killdata["victim"]["character_id"])."\",
+                    ".$killdata["victim"]["ship_type_id"].",
+                    0,
+                    1,
+                    ".$killdata["attackers"][0]["character_id"].",
+                    \"".getCharacterName($killdata["attackers"][0]["character_id"])."\",
+                    ".$killdata["attackers"][0]["ship_type_id"].")";
+                
+                $result=$dbcon->query($qr);
+
+                if(!$result){
+                    $error_occured=true;
+                }
+                $onlyNPCkill=false;
+            }
+            //NPC 킬은 다르게 저장.
+            else{
+                $qr="insert into Event_killmails (
+                    killmail_id,
+                    killmail_hash,
+                    killtime,
+                    victim_id,victim_name,victim_ship,
+                    value,killers_number,
+                    killer_id,killer_name,killer_ship) values (
+                    ".$killdata["killmail_id"].",
+                    \"".$_GET["killmail_hash"]."\",
+                    timestamp(\"".str_replace("Z","+00:00",$killdata["killmail_time"])."\"),
+                    ".$killdata["victim"]["character_id"].",
+                    \"".getCharacterName($killdata["victim"]["character_id"])."\",
+                    ".$killdata["victim"]["ship_type_id"].",
+                    0,
+                    1,
+                    0,
+                    \"Hostile NPC\",
+                    ".$killdata["attackers"][0]["ship_type_id"].")";
+                
+                $result=$dbcon->query($qr);
+
+                if(!$result){
+                    $error_occured=true;
+                    
+                }
+            }
+
+        }
+        //쉽만 정상적으로 저장해야 함. (스트럭쳐들은 제외하고 더미 값을 저장해야 함.)
+        
         else{
+            
 
 
             //터진 쉽의 밸류를 계산해야 함.
@@ -157,33 +197,67 @@ if(isset($_GET["killmail_id"])){
 
             //셀바중 계산을 위해 반으로 나눔.
             $shipValue=ceil($shipValue/2);
-
+            $onlyNPCkill=true;
             for($i=0;$i<sizeof($killdata["attackers"]) && !$error_occured;$i++){
 
-                $qr="insert into Event_killmails (
-                    killmail_id,
-                    killmail_hash,
-                    killtime,
-                    victim_id,victim_name,victim_ship,
-                    value,killers_number,
-                    killer_id,killer_name,killer_ship) values (
-                    ".$killdata["killmail_id"].",
-                    \"".$_GET["killmail_hash"]."\",
-                    timestamp(\"".str_replace("Z","+00:00",$killdata["killmail_time"])."\"),
-                    ".$killdata["victim"]["character_id"].",
-                    \"".getCharacterName($killdata["victim"]["character_id"])."\",
-                    ".$killdata["victim"]["ship_type_id"].",
-                    ".$shipValue.",
-                    ".sizeof($killdata["attackers"]).",
-                    ".$killdata["attackers"][$i]["character_id"].",
-                    \"".getCharacterName($killdata["attackers"][$i]["character_id"])."\",
-                    ".$killdata["attackers"][$i]["ship_type_id"].")";
+                //NPC 가 아닌 유저의 킬이면.
+                if(isset($killdata["attackers"][$i]["character_id"])){
                 
-                $result=$dbcon->query($qr);
+                    $qr="insert into Event_killmails (
+                        killmail_id,
+                        killmail_hash,
+                        killtime,
+                        victim_id,victim_name,victim_ship,
+                        value,killers_number,
+                        killer_id,killer_name,killer_ship) values (
+                        ".$killdata["killmail_id"].",
+                        \"".$_GET["killmail_hash"]."\",
+                        timestamp(\"".str_replace("Z","+00:00",$killdata["killmail_time"])."\"),
+                        ".$killdata["victim"]["character_id"].",
+                        \"".getCharacterName($killdata["victim"]["character_id"])."\",
+                        ".$killdata["victim"]["ship_type_id"].",
+                        ".$shipValue.",
+                        ".sizeof($killdata["attackers"]).",
+                        ".$killdata["attackers"][$i]["character_id"].",
+                        \"".getCharacterName($killdata["attackers"][$i]["character_id"])."\",
+                        ".$killdata["attackers"][$i]["ship_type_id"].")";
+                    
+                    $result=$dbcon->query($qr);
 
-                if(!$result){
-                    $error_occured=true;
+                    if(!$result){
+                        $error_occured=true;
+                    }
+                    $onlyNPCkill=false;
                 }
+                //NPC 킬은 다르게 저장.
+                else{
+                    $qr="insert into Event_killmails (
+                        killmail_id,
+                        killmail_hash,
+                        killtime,
+                        victim_id,victim_name,victim_ship,
+                        value,killers_number,
+                        killer_id,killer_name,killer_ship) values (
+                        ".$killdata["killmail_id"].",
+                        \"".$_GET["killmail_hash"]."\",
+                        timestamp(\"".str_replace("Z","+00:00",$killdata["killmail_time"])."\"),
+                        ".$killdata["victim"]["character_id"].",
+                        \"".getCharacterName($killdata["victim"]["character_id"])."\",
+                        ".$killdata["victim"]["ship_type_id"].",
+                        ".$shipValue.",
+                        ".sizeof($killdata["attackers"]).",
+                        0,
+                        \"Hostile NPC\",
+                        ".$killdata["attackers"][0]["ship_type_id"].")";
+                    
+                    $result=$dbcon->query($qr);
+    
+                    if(!$result){
+                        $error_occured=true;
+                        
+                    }
+                }
+                
 
             }
             if(!$error_occured){
@@ -194,8 +268,10 @@ if(isset($_GET["killmail_id"])){
             }
         }
     }
+    
 }
 else{
-    echo("");
+    echo("{\"error\":\"Input_error\",\n\"message\":\"잘못된 입력입니다.\"}");
 }
+
 ?>

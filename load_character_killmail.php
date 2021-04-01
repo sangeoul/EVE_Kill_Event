@@ -13,14 +13,13 @@ $apiurl="https://esi.evetech.net/latest/characters/".$_GET["character_id"]."/kil
 $curl= curl_init();
 curl_setopt($curl,CURLOPT_SSL_VERIFYPEER, $SSLauth); 
 curl_setopt($curl,CURLOPT_HTTPGET,true);
-curl_setopt($curl,CURLOPT_HTTPHEADER,array($header_type,"Authorization: Bearer ".$_SESSION["PublicESI_access_token"]));
+curl_setopt($curl,CURLOPT_HTTPHEADER,array($header_type,"Authorization: Bearer ".refresh_token($_GET["character_id"],"KillEvent")));
 curl_setopt($curl,CURLOPT_URL,$apiurl);
 curl_setopt($curl,CURLOPT_RETURNTRANSFER,true);
 
 $curl_response=curl_exec($curl);
 //var_dump($curl_response);
 curl_close($curl);
-
 $killdata=json_decode($curl_response,true);
 
 for($i=0;$i<sizeof($killdata);$i++){
@@ -29,14 +28,16 @@ for($i=0;$i<sizeof($killdata);$i++){
 
     if($result->num_rows==0){
         $curl= curl_init();
+        $killapiurl="https://lindows.kr/CorpESI/Event/submit_killmail.php?killmail_id=".$killdata[$i]["killmail_id"]."&killmail_hash=".$killdata[$i]["killmail_hash"];
         curl_setopt($curl,CURLOPT_SSL_VERIFYPEER, $SSLauth); 
         curl_setopt($curl,CURLOPT_HTTPGET,true);
-        curl_setopt($curl,CURLOPT_URL,"https://lindows.kr/CorpESI/Event/submit_killmail.php?killmail_id=".$killdata[$i]["killmail_id"]."&killmail_hash=".$killdata[$i]["killmail_hash"]);
+        curl_setopt($curl,CURLOPT_URL,$killapiurl);
         curl_setopt($curl,CURLOPT_RETURNTRANSFER,true);
 
         $curl_response=curl_exec($curl);
         //var_dump($curl_response);
         curl_close($curl);
+        echo($killapiurl."\n".$curl_response."\n\n");
     }
 }
 

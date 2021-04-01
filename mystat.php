@@ -11,7 +11,7 @@ dbset();
 
 session_start();
 
-logincheck();
+logincheck(0,0,"lindows.kr/CorpESI/Event/login.php");
 
 
 $loginurl="https://login.eveonline.com/oauth/authorize?response_type=code&redirect_uri=https://".$serveraddr."/CorpESI/Event/getesi.php&scope=".$ESI_scope["KillEvent"]."&client_id=".$client_id["KillEvent"];
@@ -53,7 +53,8 @@ $result=$dbcon->query($qr);
 
 //소유가 확인되면 정보를 출력함.
 if($result->num_rows>0){
-    refresh_token($_GET["character_id"],"KillEvent");
+    $character_access_token=refresh_token($_GET["character_id"],"KillEvent");
+
     $character_data=$result->fetch_array();
 
     $header_type= "Content-Type:application/json";
@@ -61,17 +62,14 @@ if($result->num_rows>0){
     $curl= curl_init();
     curl_setopt($curl,CURLOPT_SSL_VERIFYPEER, $SSLauth); 
     curl_setopt($curl,CURLOPT_HTTPGET,true);
-    curl_setopt($curl,CURLOPT_HTTPHEADER,array($header_type,"Authorization: Bearer ".$_SESSION["PublicESI_access_token"]));
+    curl_setopt($curl,CURLOPT_HTTPHEADER,array($header_type,"Authorization: Bearer ".$character_access_token));
     curl_setopt($curl,CURLOPT_URL,$apiurl);
     curl_setopt($curl,CURLOPT_RETURNTRANSFER,true);
     
     $curl_response=curl_exec($curl);
     //var_dump($curl_response);
     curl_close($curl);
-    
-    //echo( $curl_response."\n<br>");
-    //echo( $_SESSION["PublicESI_access_token"]."\n<br>");
-    //echo( $_SESSION["PublicESI_access_token"]."\n<br>");
+
     $killdata=json_decode($curl_response,true);
 
     if(array_key_exists("error", $killdata) && ($killdata["error"]=="unexpected end of JSON input" || $killdata["error"]=="authorization not provided")){
@@ -87,23 +85,32 @@ if($result->num_rows>0){
         $result=$dbcon->query($qr);
         $killpoint=$result->fetch_row();
         $killpoint=ceil($killpoint[0]);
-
-        $qr="select sum(value/killers_number) from Event_killmails where victim_id=".$_GET["character_id"]." and (victim_ship!=11176 and victim_ship!=11198 and victim_ship!=11202 and victim_ship!=11186)";
+        
+        //                                                                                                                  인셉은 1/4                                                                              딕터는 1/2
+        $qr="select sum(value/killers_number) from Event_killmails where victim_id=".$_GET["character_id"]." and (victim_ship!=11176 and victim_ship!=11198 and victim_ship!=11202 and victim_ship!=11186) and (victim_ship!=22456 and victim_ship!=22460 and victim_ship!=22464 and victim_ship!=22452)";
         $result=$dbcon->query($qr);
         $losspoint=$result->fetch_row();
         $losspoint=ceil($losspoint[0]);
 
-        $qr="select sum(value/(4*killers_number)) from Event_killmails where victim_id=".$_GET["character_id"]." and (victim_ship=11176 or victim_ship!=11198 or victim_ship!=11202 or victim_ship!=11186)";
+        //인셉 추가 (1/2)
+        $qr="select sum(value/(2*killers_number)) from Event_killmails where victim_id=".$_GET["character_id"]." and (victim_ship=11176 or victim_ship=11198 or victim_ship=11202 or victim_ship=11186)";
         $result=$dbcon->query($qr);
         $losspoint_cept=$result->fetch_row();
         $losspoint+=ceil($losspoint_cept[0]);
 
+
+        //딕터 추가(1/24)
+        $qr="select sum(value/(3*killers_number)) from Event_killmails where victim_id=".$_GET["character_id"]." and (victim_ship=22456 or victim_ship=22460 or victim_ship=22464 or victim_ship=22452)";
+        $result=$dbcon->query($qr);
+        $losspoint_dict=$result->fetch_row();
+        $losspoint+=ceil($losspoint_dict[0]);   
+
         echo("Kill point : ".number_format($killpoint)."\n<br>");
         echo("Loss point : ".number_format($losspoint)."\n<br>");
-        echo("<span class=score>Effective point : ".number_format($killpoint-$losspoint)."</span>\n<br>");
-        echo("주의 : 현재 표시되는 점수는 테스트용으로 표시되는 점수입니다. 실제 점수는 1월 1일에 리셋됩니다.<br>")
+        echo("<span class=score>Effective point : ".number_format($killpoint-$losspoint)."</span>\n<br><br>");
 
-        //쉽별 킬포인트/로스포인트 정리
+        echo("<a href=\"./killlogs.php?character_id=".$_GET["character_id"]."\" target=_blank>상세 기록 보기</a><br>");
+        //쉽별 킬포인트/로스포인트 정리(추가해야함)
 
 
     }
